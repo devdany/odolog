@@ -80,7 +80,7 @@ private fun PairingCard() {
                     style = MaterialTheme.typography.bodyMedium, color = C.sub)
                 syncError?.let { Text(it, color = C.warn, style = MaterialTheme.typography.bodyMedium) }
                 Row {
-                    TextButton(onClick = { Graph.sync.requestSync() }) { Text("지금 동기화") }
+                    TextButton(onClick = { Graph.sync.requestSync(immediate = true) }) { Text("지금 동기화") }
                     TextButton(onClick = { Graph.sync.unpair() }) { Text("연결 해제", color = C.warn) }
                 }
             } else {

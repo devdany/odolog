@@ -136,6 +136,9 @@ private fun DriverCard() {
     val currentId by Graph.prefs.currentDriverIdFlow.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
     val current = drivers.firstOrNull { it.id == currentId }
+    val paired by Graph.prefs.orgNameFlow.collectAsStateWithLifecycle()
+    val syncing by Graph.sync.syncing.collectAsStateWithLifecycle()
+    LaunchedEffect(expanded) { if (expanded && paired != null) Graph.sync.requestSync(immediate = true) }
     Card {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -149,7 +152,14 @@ private fun DriverCard() {
             }
             if (expanded) {
                 Spacer(Modifier.height(12.dp))
-                if (drivers.isEmpty()) Text("설정 > 운전자에서 운전자를 추가하세요", color = C.sub, style = MaterialTheme.typography.bodyMedium)
+                if (paired != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (syncing) "관리자 웹에서 운전자 목록을 받는 중…" else "관리자 웹에 등록된 운전자", color = C.sub,
+                        style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text("새로고침", style = MaterialTheme.typography.labelLarge, color = C.accent,
+                        modifier = Modifier.clickable { Graph.sync.requestSync(immediate = true) }.padding(12.dp))
+                }
+                if (drivers.isEmpty()) Text(if (paired != null) "관리자 웹 > 운전자에서 추가하세요" else "설정 > 운전자에서 운전자를 추가하세요",
+                    color = C.sub, style = MaterialTheme.typography.bodyMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     drivers.forEach { d: DriverEntity ->
                         FilterChip(

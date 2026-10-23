@@ -45,7 +45,7 @@ class TripRecorderService : LifecycleService() {
         // Vehicle SDK 연결 대기 후 체인 대사
         lifecycleScope.launch { delay(2000); e.onStart() }
         // 주기 동기화 (페어링된 경우에만 실제 전송)
-        lifecycleScope.launch { while (true) { Graph.sync.requestSync(); delay(15 * 60_000L) } }
+        lifecycleScope.launch { while (true) { Graph.sync.requestSync(); delay(5 * 60_000L) } }
     }
 
     fun locator(): NaviLocator? = navi

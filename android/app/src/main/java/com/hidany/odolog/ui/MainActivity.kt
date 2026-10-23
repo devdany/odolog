@@ -45,6 +45,12 @@ class MainActivity : ComponentActivity() {
         setContent { OdoLogTheme { AppRoot(openTrip.value) { openTrip.value = it } } }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // 관리자 웹에서 바뀐 운전자 목록 등을 화면을 열 때마다 받아온다
+        Graph.sync.requestSync(immediate = true)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.getStringExtra(EXTRA_TRIP)?.let { openTrip.value = it }

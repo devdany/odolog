@@ -38,7 +38,9 @@ import java.util.concurrent.TimeUnit
 class SyncClient(private val context: Context, private val scope: CoroutineScope) {
     private val http = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
     private val json = Json { ignoreUnknownKeys = true }
-    private val trigger = Channel<Unit>(Channel.CONFLATED)
+    private val trigger = Channel<Boolean>(Channel.CONFLATED)
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing
     private val _status = MutableStateFlow<String?>(null)
     val status: StateFlow<String?> = _status
 
@@ -46,16 +48,18 @@ class SyncClient(private val context: Context, private val scope: CoroutineScope
 
     init {
         scope.launch {
-            for (t in trigger) {
-                delay(1500) // 짧은 시간 내 여러 변경을 한 번에
+            for (immediate in trigger) {
+                if (!immediate) delay(1500) // 짧은 시간 내 여러 변경을 한 번에
+                _syncing.value = true
                 runCatching { syncNow() }.onFailure {
                     Log.w(TAG, "sync failed", it); _status.value = "동기화 실패: ${it.message}"
                 }
+                _syncing.value = false
             }
         }
     }
 
-    fun requestSync() { trigger.trySend(Unit) }
+    fun requestSync(immediate: Boolean = false) { trigger.trySend(immediate) }
 
     /** 관리자 웹에서 발급한 6자리 코드로 차량 연결. */
     suspend fun pair(code: String): Result<String> = withContext(Dispatchers.IO) {
