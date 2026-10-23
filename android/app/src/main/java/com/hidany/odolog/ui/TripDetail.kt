@@ -85,7 +85,16 @@ fun TripDetail(tripId: String, onClose: () -> Unit) {
         Card {
             Column {
                 SectionTitle("운전자")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val paired = Graph.prefs.orgNameFlow.collectAsStateWithLifecycle().value != null
+                if (paired) {
+                    // 연결된 차량: 운전자는 PIN 확인으로만 정해진다 (임의 변경 불가)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(t.driverName ?: "운전자 미확인", style = MaterialTheme.typography.titleLarge, color = if (t.driverName != null) C.text else C.warn)
+                        Spacer(Modifier.width(12.dp))
+                        Text(if (t.driverVerified) "PIN 본인 확인" else "미확인", style = MaterialTheme.typography.labelMedium,
+                            color = if (t.driverVerified) C.accent else C.warn)
+                    }
+                } else FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     drivers.forEach { d ->
                         FilterChip(
                             selected = d.id == t.driverId,
@@ -96,7 +105,7 @@ fun TripDetail(tripId: String, onClose: () -> Unit) {
                         )
                     }
                 }
-                if (drivers.isEmpty()) Text(t.driverName ?: "운전자 미지정", color = C.sub)
+                if (!paired && drivers.isEmpty()) Text(t.driverName ?: "운전자 미지정", color = C.sub)
             }
         }
         Spacer(Modifier.height(20.dp))

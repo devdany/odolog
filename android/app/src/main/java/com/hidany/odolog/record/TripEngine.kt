@@ -31,6 +31,8 @@ class TripEngine(
     private val navi: NaviLocator,
     private val readOdometer: ((Double?) -> Unit) -> Unit,
     private val onArrival: (TripEntity) -> Unit,
+    private val onParked: (TripEntity) -> Unit = {},
+    private val onPowerOffDone: (TripEntity?) -> Unit = {},
 ) {
     private val db = Graph.db
     private val prefs = Graph.prefs
@@ -113,6 +115,7 @@ class TripEngine(
             endOdoKm = odo,
             driverId = driver?.id,
             driverName = driver?.name,
+            checkinId = driver?.let { prefs.checkinId },
         )
         db.trips().upsert(trip)
         prefs.lastOdoKm = odo; prefs.lastOdoAt = trip.startAt
@@ -136,8 +139,10 @@ class TripEngine(
                 stopJob?.cancel(); stopJob = null
                 val endAt = prefs.stoppingSince.takeIf { it > 0 } ?: System.currentTimeMillis()
                 Log.i(TAG, "power off → finish ${open.id}")
-                finish(open.id, endAt)
+                finish(open.id, endAt, notify = false)
             }
+            // 확정하지 않고 내렸다면 그 운행은 그 운전자의 미확정으로 남고, 다음 운전자에게는 보이지 않는다
+            onPowerOffDone(null)
             refreshLive()
         }
     }
@@ -147,6 +152,18 @@ class TripEngine(
         prefs.stoppingSince = System.currentTimeMillis()
         navi.refreshDestination()
         scheduleFinish(open.id)
+        // 시동을 끄면 화면도 꺼지므로, 내리기 전(P·시동 켜짐)에 용도를 묻는다
+        if (open.purpose == Purpose.UNCONFIRMED && open.distanceKm > 0) {
+            val dest = navi.destination
+            val s = PurposeClassifier.suggest(
+                start = open.startLat?.let { GeoPoint(it, open.startLng ?: 0.0, open.startAddr) },
+                end = null, places = db.places().all(), naviHome = navi.home, naviOffice = navi.office,
+                hadDestination = dest != null, lastPurpose = prefs.lastPurpose,
+            )
+            val withSuggest = open.copy(suggestedPurpose = s.purpose, destName = dest?.name?.ifBlank { null } ?: open.destName)
+            db.trips().upsert(withSuggest)
+            onParked(withSuggest)
+        }
     }
 
     private fun scheduleFinish(tripId: String) {
@@ -161,7 +178,7 @@ class TripEngine(
         }
     }
 
-    private suspend fun finish(tripId: String, endAt: Long) {
+    private suspend fun finish(tripId: String, endAt: Long, notify: Boolean = true) {
         val trip = db.trips().get(tripId) ?: return
         if (!trip.isOpen) return
         prefs.stoppingSince = 0
@@ -188,7 +205,7 @@ class TripEngine(
         db.trips().upsert(done)
         prefs.lastOdoKm = endOdo; prefs.lastOdoAt = endAt
         Log.i(TAG, "trip finished ${done.id} ${done.distanceKm} km, suggest ${s.purpose}")
-        onArrival(done)
+        if (notify && done.purpose == Purpose.UNCONFIRMED) onArrival(done)
         Graph.sync.requestSync()
     }
 

@@ -77,8 +77,32 @@ class SyncClient(private val context: Context, private val scope: CoroutineScope
         }
     }
 
+    sealed interface PinResult {
+        data class Ok(val checkinId: String) : PinResult
+        data class Wrong(val remaining: Int) : PinResult
+        data object Locked : PinResult
+        data object NoPin : PinResult
+        data class Error(val message: String) : PinResult
+    }
+
+    /** 운전자 PIN 확인 → 서버 체크인 id. 네트워크가 필요하다. */
+    suspend fun verifyPin(driverId: String, pin: String): PinResult = withContext(Dispatchers.IO) {
+        val token = Graph.prefs.deviceToken ?: return@withContext PinResult.Error("관리자 웹에 연결되지 않았습니다")
+        runCatching {
+            val r = rpc("verify_driver_pin", buildJsonObject { put("p_token", token); put("p_driver", driverId); put("p_pin", pin) }).jsonObject
+            if (r["ok"]?.jsonPrimitive?.content == "true") PinResult.Ok(r["checkin_id"]!!.jsonPrimitive.content)
+            else when (r["reason"]?.jsonPrimitive?.content) {
+                "wrong_pin" -> PinResult.Wrong(r["remaining"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0)
+                "locked" -> PinResult.Locked
+                "no_pin" -> PinResult.NoPin
+                else -> PinResult.Error("확인할 수 없는 운전자입니다")
+            }
+        }.getOrElse { PinResult.Error("네트워크 연결을 확인해 주세요") }
+    }
+
     fun unpair() = scope.launch {
         Graph.prefs.deviceToken = null; Graph.prefs.vehicleLabel = null; Graph.prefs.orgName = null
+        Graph.prefs.currentDriverId = null; Graph.prefs.checkinId = null
         Graph.db.drivers().clearServer()
     }
 
@@ -101,6 +125,7 @@ class SyncClient(private val context: Context, private val scope: CoroutineScope
                 name = o["name"]!!.jsonPrimitive.content,
                 dept = o["dept"]?.jsonPrimitive?.contentOrNullSafe(),
                 fromServer = true,
+                hasPin = o["has_pin"]?.jsonPrimitive?.content == "true",
             )
         }
         Graph.db.drivers().clearServer()
@@ -144,6 +169,7 @@ class SyncClient(private val context: Context, private val scope: CoroutineScope
         note?.let { put("note", it) }
         put("source", source.name)
         confirmedAt?.let { put("confirmed_at", Instant.ofEpochMilli(it).toString()) }
+        checkinId?.let { put("checkin_id", it) }
     }
 
     private fun JsonPrimitive.contentOrNullSafe(): String? = if (this.toString() == "null") null else content

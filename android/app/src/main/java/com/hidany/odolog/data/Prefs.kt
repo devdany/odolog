@@ -28,6 +28,16 @@ class Prefs(context: Context) {
         get() = _currentDriverId.value
         set(v) { sp.edit { putString("current_driver", v) }; _currentDriverId.value = v }
 
+    /** 현재 운전자의 서버 PIN 체크인 id (없으면 미확인). 시동을 끄면 운전자와 함께 해제. */
+    private val _checkinId = MutableStateFlow(sp.getString("checkin_id", null))
+    val checkinIdFlow: StateFlow<String?> = _checkinId
+    var checkinId: String?
+        get() = _checkinId.value
+        set(v) { sp.edit { putString("checkin_id", v) }; _checkinId.value = v }
+    var checkinAt: Long
+        get() = sp.getLong("checkin_at", 0)
+        set(v) = sp.edit { putLong("checkin_at", v) }
+
     /** 시동을 켠 채 P로 서 있을 때의 정차 유예(초). 기본 30분, 시연 15초. 시동을 끄면 유예 없이 종료. */
     private val _stopGraceSec = MutableStateFlow(sp.getInt("stop_grace_v2", 1800))
     val stopGraceSecFlow: StateFlow<Int> = _stopGraceSec

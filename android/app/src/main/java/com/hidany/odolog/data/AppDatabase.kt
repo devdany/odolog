@@ -24,6 +24,16 @@ interface TripDao {
     fun observeRange(from: Long, to: Long): Flow<List<TripEntity>>
     @Query("SELECT * FROM trips WHERE endAt IS NOT NULL AND purpose = 'UNCONFIRMED' ORDER BY startAt ASC")
     fun observePending(): Flow<List<TripEntity>>
+    /** 차량 화면에 보여줄 미확정: 확인된 현재 운전자 본인 것 + 운전자 미상의 미확인 구간(넘기지 않은 것) */
+    @Query("""SELECT * FROM trips WHERE endAt IS NOT NULL AND purpose = 'UNCONFIRMED' AND dismissedAt IS NULL
+              AND (driverId = :driverId OR (source = 'GAP' AND driverId IS NULL)) ORDER BY startAt ASC""")
+    fun observePendingFor(driverId: String): Flow<List<TripEntity>>
+    @Query("SELECT * FROM trips WHERE driverId = :driverId ORDER BY startAt DESC LIMIT :n")
+    fun observeRecentFor(driverId: String, n: Int): Flow<List<TripEntity>>
+    @Query("SELECT * FROM trips WHERE driverId = :driverId AND startAt >= :from AND startAt < :to ORDER BY startAt DESC")
+    fun observeRangeFor(driverId: String, from: Long, to: Long): Flow<List<TripEntity>>
+    @Query("SELECT * FROM trips WHERE endAt IS NULL ORDER BY startAt DESC LIMIT 1")
+    fun observeOpen(): Flow<TripEntity?>
     @Query("SELECT * FROM trips ORDER BY startAt DESC LIMIT :n") fun observeRecent(n: Int): Flow<List<TripEntity>>
     @Query("SELECT * FROM trips WHERE syncedAt IS NULL OR updatedAt > syncedAt") suspend fun unsynced(): List<TripEntity>
     @Query("UPDATE trips SET syncedAt = :at WHERE id IN (:ids) AND updatedAt <= :at") suspend fun markSynced(ids: List<String>, at: Long)
@@ -53,6 +63,14 @@ interface ChainDao {
     @Insert suspend fun insert(e: ChainEventEntity)
 }
 
+val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE trips ADD COLUMN checkinId TEXT")
+        db.execSQL("ALTER TABLE trips ADD COLUMN dismissedAt INTEGER")
+        db.execSQL("ALTER TABLE drivers ADD COLUMN hasPin INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 class Converters {
     @TypeConverter fun purposeToString(p: Purpose?) = p?.name
     @TypeConverter fun stringToPurpose(s: String?) = s?.let { Purpose.valueOf(it) }
@@ -64,11 +82,12 @@ class Converters {
 
 @Database(
     entities = [TripEntity::class, DriverEntity::class, PlaceEntity::class, ChainEventEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    // v2: PIN 본인 확인(checkinId), 미확인 구간 넘기기(dismissedAt), 운전자 PIN 여부(hasPin)
     abstract fun trips(): TripDao
     abstract fun drivers(): DriverDao
     abstract fun places(): PlaceDao
@@ -78,6 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile private var instance: AppDatabase? = null
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "odolog.db")
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }

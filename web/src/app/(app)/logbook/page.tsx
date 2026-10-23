@@ -41,7 +41,7 @@ export default async function LogbookPage({ searchParams }: PageProps<"/logbook"
     <>
       <PageTitle
         title="운행일지"
-        desc="업무용승용차 운행기록부(국세청 서식) 기준. 업무용 사용거리 = 출퇴근용 + 일반업무용"
+        desc="업무용승용차 운행기록부(국세청 서식) 기준. 업무용 사용거리 = 출퇴근용 + 일반업무용. '본인확인'은 운전자가 차량에서 PIN으로 확인한 운행입니다."
         right={
           vehicle && (
             <div className="flex gap-2">
@@ -117,7 +117,10 @@ export default async function LogbookPage({ searchParams }: PageProps<"/logbook"
                     <span className="block text-xs text-gray-400">{fmtTime(t.start_at)}{t.end_at ? `–${fmtTime(t.end_at)}` : " 주행 중"}</span>
                   </td>
                   <td className="px-3 py-2">{(t.driver_id && deptOf.get(t.driver_id)) || ""}</td>
-                  <td className="px-3 py-2">{t.driver_name ?? <span className="text-gray-400">미지정</span>}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {t.driver_name ?? <span className="text-gray-400">미지정</span>}
+                    {t.driver_verified && <span title={t.driver_verified_at ? `PIN 확인 ${fmtTime(t.driver_verified_at)}` : "PIN 확인"} className="ml-1 rounded bg-teal-50 px-1 text-[10px] font-medium text-teal-700">본인확인</span>}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">{km(t.start_odo_km)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{km(t.end_odo_km)}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium">{km(d)}</td>

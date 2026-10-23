@@ -85,7 +85,7 @@ fun PurposeButtons(suggested: Purpose?, selected: Purpose? = null, onPick: (Purp
 
 /** 도착 카드 / 미확인 구간 카드 (S3, S5). */
 @Composable
-fun AttentionCard(trip: TripEntity, onPick: (Purpose) -> Unit, onOpen: () -> Unit) {
+fun AttentionCard(trip: TripEntity, onPick: (Purpose) -> Unit, onOpen: () -> Unit, onNotMine: (() -> Unit)? = null) {
     val gap = trip.source == TripSource.GAP
     Card(border = if (gap) C.warn else C.accent) {
         Column {
@@ -106,9 +106,13 @@ fun AttentionCard(trip: TripEntity, onPick: (Purpose) -> Unit, onOpen: () -> Uni
                 Text("추천: ${it.label}", style = MaterialTheme.typography.bodyMedium, color = purposeColor(it))
             }
             Spacer(Modifier.height(18.dp))
+            if (onNotMine != null) Text("제가 운전한 거리라면 용도를 선택하세요", style = MaterialTheme.typography.bodyMedium, color = C.text,
+                modifier = Modifier.padding(bottom = 10.dp))
             PurposeButtons(suggested = trip.suggestedPurpose, onPick = onPick)
             Spacer(Modifier.height(8.dp))
-            Text("운전자·메모 수정", style = MaterialTheme.typography.bodyMedium, color = C.accent,
+            if (onNotMine != null) Text("제가 운전하지 않았습니다 (관리자에게 넘기기)", style = MaterialTheme.typography.bodyMedium, color = C.sub,
+                modifier = Modifier.clickable(onClick = onNotMine).padding(vertical = 8.dp))
+            else Text("메모 추가·상세 보기", style = MaterialTheme.typography.bodyMedium, color = C.accent,
                 modifier = Modifier.clickable(onClick = onOpen).padding(vertical = 8.dp))
         }
     }

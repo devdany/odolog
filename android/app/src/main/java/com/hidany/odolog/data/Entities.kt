@@ -41,7 +41,12 @@ data class TripEntity(
     val confirmedAt: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
     val syncedAt: Long? = null,
+    /** 서버 PIN 체크인 id. 서버가 이 기록으로 '본인 확인'을 판정한다. */
+    val checkinId: String? = null,
+    /** 미확인 구간을 현재 운전자가 "제가 운전하지 않았습니다"로 넘긴 시각 (차량 화면에서 숨김, 관리자가 처리). */
+    val dismissedAt: Long? = null,
 ) {
+    val driverVerified: Boolean get() = checkinId != null
     val distanceKm: Double get() = ((endOdoKm ?: startOdoKm) - startOdoKm).coerceAtLeast(0.0)
     val isOpen: Boolean get() = endAt == null
     val needsAttention: Boolean get() = !isOpen && purpose == Purpose.UNCONFIRMED
@@ -54,6 +59,7 @@ data class DriverEntity(
     val name: String,
     val dept: String? = null,
     val fromServer: Boolean = false,
+    val hasPin: Boolean = false,
 )
 
 /** 학습된 장소(업무 장소, 집, 회사). */

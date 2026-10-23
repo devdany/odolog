@@ -32,6 +32,12 @@ class TripRecorderService : LifecycleService() {
             navi = n,
             readOdometer = { cb -> s.readOdometer(cb = cb) },
             onArrival = { trip -> Notifier.arrival(this, trip) },
+            onParked = { trip -> Notifier.arrival(this, trip, parked = true) },
+            onPowerOffDone = {
+                // 다음 운전자에게 이전 운전자의 운행·알림이 보이지 않도록
+                Notifier.cancelAllArrivals(this)
+                Graph.actions.checkOut()
+            },
         ).also { engine = it }
         s = VehicleSignals(
             context = this,

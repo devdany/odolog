@@ -34,6 +34,9 @@ import com.hidany.odolog.Graph
 import com.hidany.odolog.data.DriverEntity
 import com.hidany.odolog.data.Purpose
 import com.hidany.odolog.data.TripEntity
+import com.hidany.odolog.data.TripSource
+import kotlinx.coroutines.flow.flowOf
+import androidx.compose.foundation.layout.width
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.ZoneId
@@ -65,8 +68,24 @@ fun monthRange(ym: LocalDate): Pair<Long, Long> {
 @Composable
 fun HomeScreen(onOpenTrip: (String) -> Unit) {
     val live by Graph.live.state.collectAsStateWithLifecycle()
-    val pending by Graph.db.trips().observePending().collectAsStateWithLifecycle(emptyList())
-    val recent by Graph.db.trips().observeRecent(4).collectAsStateWithLifecycle(emptyList())
+    val paired by Graph.prefs.orgNameFlow.collectAsStateWithLifecycle()
+    val driverId by Graph.prefs.currentDriverIdFlow.collectAsStateWithLifecycle()
+    // 관리자 웹에 연결된 차량은 확인된 현재 운전자 본인의 운행만 보여준다 (다음 운전자에게 이전 운전자 내용 비노출)
+    val pending by remember(paired, driverId) {
+        when {
+            paired == null -> Graph.db.trips().observePending()
+            driverId != null -> Graph.db.trips().observePendingFor(driverId!!)
+            else -> flowOf(emptyList())
+        }
+    }.collectAsStateWithLifecycle(emptyList())
+    val recent by remember(paired, driverId) {
+        when {
+            paired == null -> Graph.db.trips().observeRecent(4)
+            driverId != null -> Graph.db.trips().observeRecentFor(driverId!!, 4)
+            else -> flowOf(emptyList())
+        }
+    }.collectAsStateWithLifecycle(emptyList())
+    val open by Graph.db.trips().observeOpen().collectAsStateWithLifecycle(null)
     val (from, to) = remember { monthRange(LocalDate.now()) }
     val month by Graph.db.trips().observeRange(from, to).collectAsStateWithLifecycle(emptyList())
     val summary = MonthSummary.of(month)
@@ -74,7 +93,12 @@ fun HomeScreen(onOpenTrip: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item { StatusCard(live.odometerKm, live.moving, live.openTripId != null, live.stoppingUntil, live.serviceRunning) }
         item { DriverCard() }
-        val suggested = pending.filter { it.suggestedPurpose != null }
+        // 내리기 전(P·시동 켜짐)에 이번 운행 용도 선택
+        val o = open
+        if (o != null && live.moving == false && o.distanceKm > 0 && (paired == null || o.driverId == driverId)) item {
+            ParkedCard(o)
+        }
+        val suggested = pending.filter { it.suggestedPurpose != null && it.source != TripSource.GAP }
         if (suggested.size >= 2) item {
             Card(border = C.accent) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -91,12 +115,17 @@ fun HomeScreen(onOpenTrip: (String) -> Unit) {
             }
         }
         items(pending, key = { it.id }) { t ->
-            AttentionCard(t, onPick = { Graph.actions.confirmPurpose(t.id, it) }, onOpen = { onOpenTrip(t.id) })
+            if (t.source == TripSource.GAP && t.driverId == null && paired != null) {
+                AttentionCard(t, onPick = { Graph.actions.claimGap(t.id, it) }, onOpen = { onOpenTrip(t.id) },
+                    onNotMine = { Graph.actions.dismissGap(t.id) })
+            } else {
+                AttentionCard(t, onPick = { Graph.actions.confirmPurpose(t.id, it) }, onOpen = { onOpenTrip(t.id) })
+            }
         }
         item {
             Card {
                 Column {
-                    SectionTitle("${LocalDate.now().monthValue}월 운행기록부")
+                    SectionTitle("${LocalDate.now().monthValue}월 이 차량 운행기록부")
                     Row(Modifier.fillMaxWidth()) {
                         Stat("총 주행", fmtKm(summary.totalKm), "km", Modifier.weight(1f))
                         Stat("업무용 사용거리", fmtKm(summary.businessKm + summary.commuteKm), "km", Modifier.weight(1f))
@@ -109,7 +138,7 @@ fun HomeScreen(onOpenTrip: (String) -> Unit) {
         if (recent.isNotEmpty()) item {
             Card {
                 Column {
-                    SectionTitle("최근 운행")
+                    SectionTitle(if (paired != null) "내 최근 운행" else "최근 운행")
                     recent.forEachIndexed { i, t ->
                         if (i > 0) HorizontalDivider(color = C.line)
                         TripRow(t) { onOpenTrip(t.id) }
@@ -118,6 +147,25 @@ fun HomeScreen(onOpenTrip: (String) -> Unit) {
             }
         }
         item { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+/** P단 정차 중 카드: 시동을 끄면 화면이 꺼지므로 내리기 전에 묻는다. 다시 출발하면 같은 운행으로 이어진다. */
+@Composable
+private fun ParkedCard(trip: TripEntity) {
+    Card(border = if (trip.purpose == Purpose.UNCONFIRMED) C.accent else null) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (trip.purpose == Purpose.UNCONFIRMED) "내리기 전에 이번 운행 용도를 선택하세요" else "이번 운행: ${trip.purpose.label}",
+                    style = MaterialTheme.typography.headlineSmall, color = C.text, modifier = Modifier.weight(1f))
+                Text("${fmtKm(trip.distanceKm)} km", style = MaterialTheme.typography.headlineSmall, color = C.text)
+            }
+            Text("시동을 끄면 운행이 끝납니다. 다시 출발하면 같은 운행으로 이어집니다.", style = MaterialTheme.typography.bodyMedium, color = C.sub)
+            Spacer(Modifier.height(16.dp))
+            PurposeButtons(suggested = trip.suggestedPurpose, selected = trip.purpose.takeIf { it != Purpose.UNCONFIRMED }) {
+                Graph.actions.confirmPurpose(trip.id, it)
+            }
+        }
     }
 }
 
@@ -150,20 +198,36 @@ private fun StatusCard(odo: Double?, moving: Boolean?, recording: Boolean, stopp
 private fun DriverCard() {
     val drivers by Graph.db.drivers().observeAll().collectAsStateWithLifecycle(emptyList())
     val currentId by Graph.prefs.currentDriverIdFlow.collectAsStateWithLifecycle()
-    var expanded by remember { mutableStateOf(false) }
-    val current = drivers.firstOrNull { it.id == currentId }
+    val checkinId by Graph.prefs.checkinIdFlow.collectAsStateWithLifecycle()
     val paired by Graph.prefs.orgNameFlow.collectAsStateWithLifecycle()
     val syncing by Graph.sync.syncing.collectAsStateWithLifecycle()
+    val current = drivers.firstOrNull { it.id == currentId }
+    var expanded by remember(currentId) { mutableStateOf(current == null) }
+    var pinFor by remember { mutableStateOf<DriverEntity?>(null) }
     LaunchedEffect(expanded) { if (expanded && paired != null) Graph.sync.requestSync(immediate = true) }
-    Card {
+
+    Card(border = if (current == null) C.warn else null) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("오늘 운전자", style = MaterialTheme.typography.labelMedium, color = C.sub)
-                    Text(current?.let { listOfNotNull(it.name, it.dept).joinToString(" · ") } ?: "운전자를 선택해 주세요",
-                        style = MaterialTheme.typography.titleLarge, color = if (current != null) C.text else C.warn)
+                    Text("운전자", style = MaterialTheme.typography.labelMedium, color = C.sub)
+                    if (current != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(listOfNotNull(current.name, current.dept).joinToString(" · "), style = MaterialTheme.typography.titleLarge, color = C.text)
+                            if (paired != null) {
+                                Spacer(Modifier.width(12.dp))
+                                Text(if (checkinId != null) "본인 확인 ${fmtTime(Graph.prefs.checkinAt)}" else "미확인",
+                                    style = MaterialTheme.typography.labelMedium, color = if (checkinId != null) C.accent else C.warn)
+                            }
+                        }
+                    } else {
+                        Text(if (paired != null) "운전자 확인이 필요합니다" else "운전자를 선택해 주세요",
+                            style = MaterialTheme.typography.titleLarge, color = C.warn)
+                        if (paired != null) Text("이름을 누르고 PIN을 입력하세요. 확인하면 본인의 운행만 표시됩니다.",
+                            style = MaterialTheme.typography.bodyMedium, color = C.sub)
+                    }
                 }
-                Text(if (expanded) "닫기" else "변경", style = MaterialTheme.typography.labelLarge, color = C.accent,
+                if (current != null) Text(if (expanded) "닫기" else "다른 운전자", style = MaterialTheme.typography.labelLarge, color = C.accent,
                     modifier = Modifier.clickable { expanded = !expanded }.padding(16.dp))
             }
             if (expanded) {
@@ -180,14 +244,28 @@ private fun DriverCard() {
                     drivers.forEach { d: DriverEntity ->
                         FilterChip(
                             selected = d.id == currentId,
-                            onClick = { Graph.actions.selectCurrentDriver(d); expanded = false },
-                            label = { Text(d.name, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(12.dp)) },
+                            onClick = {
+                                when {
+                                    paired == null -> { Graph.actions.checkIn(d, null); expanded = false }
+                                    d.hasPin -> pinFor = d
+                                    else -> { Graph.actions.checkIn(d, null); expanded = false } // PIN 미설정: 미확인으로 기록
+                                }
+                            },
+                            label = {
+                                Text(d.name + if (paired != null && !d.hasPin) " (PIN 없음)" else "",
+                                    style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(12.dp))
+                            },
                             shape = RoundedCornerShape(14.dp),
                             colors = FilterChipDefaults.filterChipColors(selectedContainerColor = C.accent, selectedLabelColor = androidx.compose.ui.graphics.Color.Black),
                         )
                     }
                 }
             }
+        }
+    }
+    pinFor?.let { d ->
+        PinDialog(d, onDismiss = { pinFor = null }) { checkin ->
+            Graph.actions.checkIn(d, checkin); pinFor = null; expanded = false
         }
     }
 }

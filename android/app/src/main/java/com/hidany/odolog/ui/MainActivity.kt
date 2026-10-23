@@ -67,7 +67,16 @@ private enum class Tab(val label: String) { HOME("홈"), LOG("운행일지"), SE
 @Composable
 private fun AppRoot(openTrip: String?, setOpenTrip: (String?) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
-    val pending by Graph.db.trips().observePending().collectAsStateWithLifecycle(emptyList())
+    val paired by Graph.prefs.orgNameFlow.collectAsStateWithLifecycle()
+    val driverId by Graph.prefs.currentDriverIdFlow.collectAsStateWithLifecycle()
+    // 배지도 확인된 현재 운전자 기준 (이전 운전자의 미확정 건수 비노출)
+    val pending by androidx.compose.runtime.remember(paired, driverId) {
+        when {
+            paired == null -> Graph.db.trips().observePending()
+            driverId != null -> Graph.db.trips().observePendingFor(driverId!!)
+            else -> kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.collectAsStateWithLifecycle(emptyList())
 
     Row(Modifier.fillMaxSize().background(C.bg)) {
         NavigationRail(containerColor = C.surface, modifier = Modifier.fillMaxHeight()) {

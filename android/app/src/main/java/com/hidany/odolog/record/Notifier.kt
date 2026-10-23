@@ -38,9 +38,12 @@ object Notifier {
             .setOngoing(true)
             .build()
 
-    fun arrival(context: Context, trip: TripEntity) {
-        val title = if (trip.source == TripSource.GAP) "기록되지 않은 ${fmtKm(trip.distanceKm)}km가 있습니다"
-        else "도착 · ${fmtKm(trip.distanceKm)}km"
+    fun arrival(context: Context, trip: TripEntity, parked: Boolean = false) {
+        val title = when {
+            trip.source == TripSource.GAP -> "기록되지 않은 ${fmtKm(trip.distanceKm)}km가 있습니다"
+            parked -> "내리기 전에 용도를 선택하세요 · ${fmtKm(trip.distanceKm)}km"
+            else -> "도착 · ${fmtKm(trip.distanceKm)}km"
+        }
         val route = listOfNotNull(trip.startAddr, trip.destName ?: trip.endAddr).joinToString(" → ")
         val suggest = trip.suggestedPurpose?.let { "추천: ${it.label}" }
         val text = listOfNotNull(route.ifBlank { null }, suggest).joinToString(" · ").ifBlank { "용도를 선택해 주세요" }
@@ -60,6 +63,11 @@ object Notifier {
 
     fun cancelArrival(context: Context, tripId: String) =
         context.getSystemService(NotificationManager::class.java).cancel(tripId.hashCode())
+
+    fun cancelAllArrivals(context: Context) {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        nm.activeNotifications.filter { it.notification.channelId == CH_ARRIVAL }.forEach { nm.cancel(it.id) }
+    }
 
     private fun openApp(context: Context, tripId: String?) = PendingIntent.getActivity(
         context, tripId?.hashCode() ?: 0,

@@ -43,10 +43,37 @@ class TripActions(private val context: Context, private val scope: CoroutineScop
         Graph.sync.requestSync()
     }
 
-    /** 오늘 운전자 선택. 열린 운행이 있으면 그 운행에도 반영. */
-    fun selectCurrentDriver(driver: DriverEntity?) = scope.launch {
-        Graph.prefs.currentDriverId = driver?.id
-        db.trips().open()?.let { setDriver(it.id, driver) }
+    /** 운전자 확인 완료(PIN 체크인, 또는 미연결 로컬 모드에선 선택만). 열린 운행이 있으면 그 운행에도 반영. */
+    fun checkIn(driver: DriverEntity, checkinId: String?) = scope.launch {
+        Graph.prefs.currentDriverId = driver.id
+        Graph.prefs.checkinId = checkinId
+        Graph.prefs.checkinAt = System.currentTimeMillis()
+        db.trips().open()?.let {
+            db.trips().upsert(it.copy(driverId = driver.id, driverName = driver.name, checkinId = checkinId, updatedAt = System.currentTimeMillis()))
+        }
+        Graph.sync.requestSync()
+    }
+
+    /** 시동 끔: 다음 사람이 다시 확인하도록 현재 운전자 해제. */
+    fun checkOut() {
+        Graph.prefs.currentDriverId = null
+        Graph.prefs.checkinId = null
+    }
+
+    /** 미확인 구간을 현재(확인된) 운전자가 "제가 운전했습니다"로 가져감. */
+    fun claimGap(tripId: String, purpose: Purpose) = scope.launch {
+        val id = Graph.prefs.currentDriverId ?: return@launch
+        val d = db.drivers().all().firstOrNull { it.id == id } ?: return@launch
+        val t = db.trips().get(tripId) ?: return@launch
+        db.trips().upsert(t.copy(driverId = d.id, driverName = d.name, checkinId = Graph.prefs.checkinId, updatedAt = System.currentTimeMillis()))
+        confirmPurpose(tripId, purpose).join()
+    }
+
+    /** 미확인 구간을 "제가 운전하지 않았습니다"로 넘김 → 차량 화면에서 숨기고 관리자가 처리. */
+    fun dismissGap(tripId: String) = scope.launch {
+        val t = db.trips().get(tripId) ?: return@launch
+        db.trips().upsert(t.copy(dismissedAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis()))
+        Notifier.cancelArrival(context, tripId)
     }
 
     fun addLocalDriver(name: String, dept: String?) = scope.launch {

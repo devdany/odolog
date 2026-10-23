@@ -36,6 +36,8 @@ export type Trip = {
   toll_won: number | null;
   note: string | null;
   source: "AUTO" | "GAP";
+  driver_verified: boolean;
+  driver_verified_at: string | null;
 };
 
 /** 로그인 사용자와 소속 조직. 없으면 로그인/온보딩으로 보낸다 (Data Access Layer). */

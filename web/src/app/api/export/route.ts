@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     total += d;
     if (t.purpose === "COMMUTE") commute += d;
     if (t.purpose === "BUSINESS") business += d;
-    const note = [t.source === "GAP" ? "미확인 구간" : null, t.dest_name ?? t.end_addr, t.note, t.purpose === "PERSONAL" ? "개인" : null, t.purpose === "UNCONFIRMED" ? "용도 미확정" : null]
+    const note = [t.source === "GAP" ? "미확인 구간" : null, t.driver_verified ? "PIN 본인확인" : null, t.dest_name ?? t.end_addr, t.note, t.purpose === "PERSONAL" ? "개인" : null, t.purpose === "UNCONFIRMED" ? "용도 미확정" : null]
       .filter(Boolean).join(" · ");
     const row = ws.addRow([
       new Date(t.start_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }),

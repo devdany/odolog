@@ -37,14 +37,23 @@ import java.time.ZoneId
 fun LogbookScreen(onOpenTrip: (String) -> Unit) {
     var ym by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
     val range = remember(ym) { monthRange(ym) }
-    val trips by remember(range) { Graph.db.trips().observeRange(range.first, range.second) }.collectAsStateWithLifecycle(emptyList())
+    val paired by Graph.prefs.orgNameFlow.collectAsStateWithLifecycle()
+    val driverId by Graph.prefs.currentDriverIdFlow.collectAsStateWithLifecycle()
+    // 연결된 차량은 확인된 운전자 본인의 운행만 (전체 운행일지는 관리자 웹에서)
+    val trips by remember(range, paired, driverId) {
+        when {
+            paired == null -> Graph.db.trips().observeRange(range.first, range.second)
+            driverId != null -> Graph.db.trips().observeRangeFor(driverId!!, range.first, range.second)
+            else -> kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.collectAsStateWithLifecycle(emptyList())
     val s = MonthSummary.of(trips)
     val byDay = trips.groupBy { Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate() }
 
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { ym = ym.minusMonths(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전 달", tint = C.text) }
-            Text("${ym.year}년 ${ym.monthValue}월", style = MaterialTheme.typography.headlineSmall, color = C.text)
+            Text("${ym.year}년 ${ym.monthValue}월" + if (paired != null) " · 내 운행" else "", style = MaterialTheme.typography.headlineSmall, color = C.text)
             IconButton(onClick = { ym = ym.plusMonths(1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음 달", tint = C.text) }
         }
         Spacer(Modifier.height(12.dp))
@@ -57,7 +66,10 @@ fun LogbookScreen(onOpenTrip: (String) -> Unit) {
             }
         }
         Spacer(Modifier.height(20.dp))
-        if (trips.isEmpty()) {
+        if (paired != null && driverId == null) {
+            Text("홈에서 운전자를 확인하면 본인의 운행일지를 볼 수 있습니다. 차량 전체 운행일지는 관리자 웹에서 확인합니다.",
+                color = C.sub, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(24.dp))
+        } else if (trips.isEmpty()) {
             Text("이 달의 운행 기록이 없습니다", color = C.sub, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(24.dp))
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
