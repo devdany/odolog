@@ -20,9 +20,16 @@ async function signUp(formData: FormData) {
     email: String(formData.get("email")),
     password: String(formData.get("password")),
   });
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/login?error=${encodeURIComponent(signUpError(error.message))}`);
   if (!data.session) redirect(`/login?error=${encodeURIComponent("가입 확인 메일을 확인해 주세요")}`);
   redirect("/onboarding");
+}
+
+function signUpError(msg: string) {
+  if (/already registered|already exists/i.test(msg)) return "이미 가입된 이메일입니다. 로그인해 주세요.";
+  if (/password/i.test(msg)) return "비밀번호는 6자 이상이어야 합니다.";
+  if (/email/i.test(msg)) return "이메일 주소를 확인해 주세요.";
+  return "가입에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -44,7 +51,8 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           </label>
           <label className="block text-sm font-medium">
             비밀번호
-            <input name="password" type="password" required minLength={6} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" />
+            <input name="password" type="password" required minLength={6} autoComplete="current-password" placeholder="6자 이상" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" />
+            <span className="mt-1 block text-xs font-normal text-gray-500">회원가입 시 6자 이상으로 정해 주세요.</span>
           </label>
           {error && <p className="text-sm text-red-600">{String(error)}</p>}
           <button formAction={signIn} className="w-full rounded-lg bg-accent py-2.5 font-medium text-white hover:opacity-90">로그인</button>
