@@ -39,20 +39,28 @@ class TripEngine(
     private var gearMoving: Boolean? = null
     private var stopJob: Job? = null
 
-    /** 서비스 시작 시: 열린 운행 복구 + 체인 대사. */
+    /**
+     * 시작 직후 Vehicle Service가 캐시된 옛 계기판 값을 먼저 보내는 경우가 있다(에뮬레이터 실측).
+     * 워밍업 동안은 값만 받아 두고, 끝난 뒤 가장 최신 값으로 한 번만 체인 대사를 한다.
+     */
+    private val warmup = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+    /** 서비스 시작 시: 워밍업 → 열린 운행 복구 + 체인 대사. */
     fun onStart() {
-        readOdometer { km ->
-            scope.launch {
-                lock.withLock {
-                    if (km != null) { currentOdo = km; Graph.live.update { it.copy(odometerKm = km) } }
-                    val open = db.trips().open()
-                    if (open == null) {
-                        km?.let { reconcile(it) }
-                    } else if (prefs.stoppingSince > 0) {
-                        scheduleFinish(open.id)
-                    }
-                    refreshLive()
+        scope.launch {
+            delay(WARMUP_MS)
+            val fresh = awaitOdometer()
+            lock.withLock {
+                val km = fresh ?: currentOdo
+                if (km != null) { currentOdo = km; Graph.live.update { it.copy(odometerKm = km) } }
+                val open = db.trips().open()
+                if (open == null) {
+                    km?.let { reconcile(it) }
+                } else if (prefs.stoppingSince > 0) {
+                    scheduleFinish(open.id)
                 }
+                warmup.complete(Unit)
+                refreshLive()
             }
         }
     }
@@ -62,6 +70,7 @@ class TripEngine(
         gearMoving = moving
         Graph.live.update { it.copy(moving = moving) }
         scope.launch {
+            warmup.await() // 시동 직후 기어 변경이면 계기판 값이 안정될 때까지 대기 (lock 밖에서)
             lock.withLock { if (moving) handleDrive() else handlePark() }
             refreshLive()
         }
@@ -70,6 +79,7 @@ class TripEngine(
     fun onOdometer(km: Double) {
         currentOdo = km
         Graph.live.update { it.copy(odometerKm = km) }
+        if (!warmup.isCompleted) return // 워밍업 중엔 체인·기록 갱신 보류
         scope.launch {
             lock.withLock {
                 val open = db.trips().open()
@@ -208,5 +218,6 @@ class TripEngine(
     companion object {
         private const val TAG = "OdoLog.Engine"
         const val GAP_THRESHOLD_KM = 0.05
+        const val WARMUP_MS = 5000L
     }
 }

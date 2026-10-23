@@ -42,6 +42,9 @@ adb install -r -g apk/하이대니_오도로그_release.apk
 앱을 한 번 실행하면 기록 서비스가 시작되고, 이후에는 부팅(시동) 시 자동으로 시작됩니다.
 
 ### 시연 순서 (Virtual Console)
+
+슬라이더 대신 한 줄 명령으로도 됩니다: `tools/drive.sh drive 18` (주행 18km 후 P), `tools/drive.sh gap 12` (앱이 꺼진 동안 12km 주행), `tools/drive.sh status`.
+
 1. 앱 **설정 > 기록**에서 정차 유예를 `15초 (시연)`으로 바꿉니다.
 2. Motion > Gear Selection을 **D**로 → 앱이 "주행 중"으로 바뀌고 플랫폼이 앱 화면을 가립니다(주행 중 사용 제한).
 3. Motion > Odometer를 늘립니다(예: +18km).
