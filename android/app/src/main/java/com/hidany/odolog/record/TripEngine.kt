@@ -19,9 +19,9 @@ import java.util.UUID
 /**
  * 운행 상태 머신 (docs/spec.md 3장).
  *
- *   PARKED ──D/R──▶ DRIVING ──P──▶ STOPPING(유예) ──유예 만료──▶ 운행 종료(도착 카드)
- *                      ▲               │ D/R (유예 중)
- *                      └───────────────┘ 같은 운행 계속
+ *   PARKED ──D/R──▶ DRIVING ──P──▶ STOPPING ──시동 끔(화면 꺼짐)──▶ 운행 종료(도착 알림)
+ *                      ▲               │        └─시동 켠 채 유예(기본 30분) 만료─▶ 운행 종료
+ *                      └───────────────┘ D/R (같은 운행 계속: 신호 대기·잠깐 정차)
  *
  * 오도미터 체인: 새 운행 시작/앱 시작 시 마지막 관측값과 현재 계기판을 비교해
  * 증가분이 있으면 "미확인 구간"(source=GAP) 운행을 만들어 공백을 메운다. 감소하면 체인 리셋 이벤트.
@@ -123,6 +123,23 @@ class TripEngine(
             db.trips().get(trip.id)?.let { db.trips().upsert(it.copy(startAddr = loc.address, startLat = loc.lat, startLng = loc.lng, updatedAt = System.currentTimeMillis())) }
         }
         Graph.sync.requestSync()
+    }
+
+    /** 시동 끔(화면 꺼짐·종료): 열린 운행을 즉시 끝낸다. 시동을 켠 채 서 있는 경우만 P 유예를 쓴다. */
+    fun onPowerOff() {
+        // 실차에선 주행 중에도 화면만 끌 수 있다 → P단일 때만 시동 끔으로 본다
+        if (gearMoving == true) { Log.i(TAG, "screen off while driving — ignored"); return }
+        scope.launch {
+            warmup.await()
+            lock.withLock {
+                val open = db.trips().open() ?: return@withLock
+                stopJob?.cancel(); stopJob = null
+                val endAt = prefs.stoppingSince.takeIf { it > 0 } ?: System.currentTimeMillis()
+                Log.i(TAG, "power off → finish ${open.id}")
+                finish(open.id, endAt)
+            }
+            refreshLive()
+        }
     }
 
     private suspend fun handlePark() {

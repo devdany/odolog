@@ -74,6 +74,22 @@ fun HomeScreen(onOpenTrip: (String) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item { StatusCard(live.odometerKm, live.moving, live.openTripId != null, live.stoppingUntil, live.serviceRunning) }
         item { DriverCard() }
+        val suggested = pending.filter { it.suggestedPurpose != null }
+        if (suggested.size >= 2) item {
+            Card(border = C.accent) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("확인할 운행 ${pending.size}건", style = MaterialTheme.typography.titleLarge, color = C.text)
+                        Text("추천 용도가 맞으면 한 번에 확정하세요. 다른 운행은 아래에서 하나씩 고를 수 있습니다.",
+                            style = MaterialTheme.typography.bodyMedium, color = C.sub)
+                    }
+                    androidx.compose.material3.Button(
+                        onClick = { suggested.forEach { Graph.actions.confirmPurpose(it.id, it.suggestedPurpose!!) } },
+                        modifier = Modifier.height(72.dp),
+                    ) { Text("추천대로 모두 확정 (${suggested.size}건)", style = MaterialTheme.typography.labelLarge) }
+                }
+            }
+        }
         items(pending, key = { it.id }) { t ->
             AttentionCard(t, onPick = { Graph.actions.confirmPurpose(t.id, it) }, onOpen = { onOpenTrip(t.id) })
         }

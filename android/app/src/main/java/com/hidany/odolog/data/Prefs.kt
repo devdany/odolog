@@ -28,12 +28,12 @@ class Prefs(context: Context) {
         get() = _currentDriverId.value
         set(v) { sp.edit { putString("current_driver", v) }; _currentDriverId.value = v }
 
-    /** 정차 유예 시간(초). 기본 300초, 시연 모드 15초. */
-    private val _stopGraceSec = MutableStateFlow(sp.getInt("stop_grace", 300))
+    /** 시동을 켠 채 P로 서 있을 때의 정차 유예(초). 기본 30분, 시연 15초. 시동을 끄면 유예 없이 종료. */
+    private val _stopGraceSec = MutableStateFlow(sp.getInt("stop_grace_v2", 1800))
     val stopGraceSecFlow: StateFlow<Int> = _stopGraceSec
     var stopGraceSec: Int
         get() = _stopGraceSec.value
-        set(v) { sp.edit { putInt("stop_grace", v) }; _stopGraceSec.value = v }
+        set(v) { sp.edit { putInt("stop_grace_v2", v) }; _stopGraceSec.value = v }
 
     // ---- 페어링(관리자 웹 연동) ----
     var deviceToken: String?

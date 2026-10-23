@@ -2,8 +2,9 @@
 # Pleos Virtual Console로 주행을 한 줄로 시뮬레이션한다 (슬라이더 대신).
 #
 #   tools/drive.sh status          현재 기어·계기판
-#   tools/drive.sh drive 18        D → 70km/h → 계기판 +18km → 정차 → P  (오도로그 도착 카드는 정차 유예 뒤)
+#   tools/drive.sh drive 18        D → 70km/h → 계기판 +18km → 정차 → P
 #   tools/drive.sh gap 12          앱 강제 종료 → 계기판 +12km → 앱 실행  ("기록되지 않은 12km" 카드)
+#   tools/drive.sh off | on        시동 끔/켬 (에뮬레이터 화면 끄기/켜기 = 실차의 시동 끔 → 운행 즉시 종료)
 #   tools/drive.sh park | d        기어만 변경
 #
 # 계기판은 줄일 수 없다(콘솔 규칙). 되돌리려면 에뮬레이터 재부팅(0으로 초기화).
@@ -28,6 +29,11 @@ user() { "$ADB" shell am get-current-user | tr -d '\r'; }
 
 case "${1:-status}" in
   status) echo "기어 $(gear) · 계기판 $(odo) km" ;;
+  off) put "controls?speed=0&accelerator=0&brake=100&steering=0"; put "gear?gear=Park"; sleep 1
+       [ "$("$ADB" shell dumpsys power | grep -m1 -o 'mWakefulness=[A-Za-z]*')" = "mWakefulness=Awake" ] && "$ADB" shell input keyevent KEYCODE_POWER
+       echo "시동 끔 (P + 화면 꺼짐) — 열린 운행이 바로 종료됩니다" ;;
+  on) [ "$("$ADB" shell dumpsys power | grep -m1 -o 'mWakefulness=[A-Za-z]*')" = "mWakefulness=Awake" ] || "$ADB" shell input keyevent KEYCODE_POWER
+      echo "시동 켬 (화면 켜짐)" ;;
   park) put "controls?speed=0&accelerator=0&brake=100&steering=0"; put "gear?gear=Park"; echo "P" ;;
   d) put "gear?gear=Drive"; echo "D" ;;
   drive)
@@ -39,7 +45,7 @@ case "${1:-status}" in
     put "odometer?traveled_distance_km=$target"; sleep 2
     put "controls?speed=0&accelerator=0&brake=100&steering=0"; sleep 1
     put "gear?gear=Park"
-    echo "정차(P) · 계기판 $target km — 앱의 정차 유예(설정 > 기록)가 지나면 도착 카드가 뜹니다"
+    echo "정차(P) · 계기판 $target km — 이어서 tools/drive.sh off(시동 끔)이면 바로, 시동을 켠 채면 정차 유예 뒤 운행이 끝납니다"
     ;;
   gap)
     km="${2:?주행거리(km)를 입력하세요. 예: gap 12}"

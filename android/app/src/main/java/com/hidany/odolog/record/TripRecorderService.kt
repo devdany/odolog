@@ -18,6 +18,7 @@ class TripRecorderService : LifecycleService() {
     private var signals: VehicleSignals? = null
     private var navi: NaviLocator? = null
     private var engine: TripEngine? = null
+    private var powerReceiver: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -39,6 +40,15 @@ class TripRecorderService : LifecycleService() {
             onRestricted = { r -> Graph.live.update { it.copy(restricted = r) } },
         ).also { signals = it }
 
+        // 시동 끔: 3rd party 앱은 차량 시동 신호를 읽을 수 없어(에뮬레이터 실측) 시스템 화면 꺼짐·종료로 판단
+        powerReceiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) { e.onPowerOff() }
+        }.also {
+            registerReceiver(it, android.content.IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SHUTDOWN)
+            })
+        }
+
         n.start()
         s.start()
         Graph.live.update { it.copy(serviceRunning = true) }
@@ -56,6 +66,7 @@ class TripRecorderService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        powerReceiver?.let { runCatching { unregisterReceiver(it) } }
         signals?.stop()
         navi?.stop()
         Graph.live.update { it.copy(serviceRunning = false) }

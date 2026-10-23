@@ -26,6 +26,7 @@
 | 8 | Seat 위치/점유 get | ⚠️ 모두 0/false | Virtual Console에서 운전석 occupied=true 설정 후에도 false. 매핑 이슈 또는 미반영 → 운전자 추정 기능은 보조로만 |
 
 결정 사항:
+- **운행 종료 = 시동 끔** (2026-10-23): Virtual Console Power System(Off/Ready/On/Driving)은 VHAL 내부 전원 상태만 바꾸고, 3rd party가 읽을 수 있는 24개 프로퍼티 중 반응하는 것이 없음(Pleos SDK IgnitionState도 반환 API 없음). 대신 시스템 `ACTION_SCREEN_OFF`/`ACTION_SHUTDOWN`(실차 시동 끔 시 화면 꺼짐·종료)을 P단일 때만 시동 끔으로 해석. 시동 켠 채 P는 30분 유예.
 - **트립 경계 = GEAR_SELECTION(P↔D) + CarUxRestrictions**, 거리 = **총 오도미터 차분**, 누락 대비 = 체인 대사.
 - 상주 = 포그라운드 서비스(specialUse) + BOOT_COMPLETED. (실차 App Market 심사에서 FGS 허용 여부는 별도 확인 필요)
 - 위치(2층) = NaviHelper getCurrentLocationInfo, 트립 시작/종료 시점 1회씩 조회(+재시도).

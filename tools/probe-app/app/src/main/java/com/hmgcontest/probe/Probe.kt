@@ -134,6 +134,7 @@ class Probe(private val context: Context) {
 
         val cpm = runCatching { c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager }
             .getOrElse { ProbeLog.i("PROP", "manager error: $it"); return }
+        watchAllProps(cpm)
         val props = listOf(
             VehiclePropertyIds.GEAR_SELECTION to "GEAR_SELECTION",
             VehiclePropertyIds.IGNITION_STATE to "IGNITION_STATE",
@@ -153,6 +154,28 @@ class Probe(private val context: Context) {
                 }, id, if (name.startsWith("PERF")) 1f else CarPropertyManager.SENSOR_RATE_ONCHANGE)
                 ProbeLog.i("PROP", "$name registerCallback = $ok")
             }.onFailure { ProbeLog.i("PROP", "$name register failed: $it") }
+        }
+    }
+
+    /** 앱이 읽을 수 있는 모든 프로퍼티를 구독해 변화만 기록 (시동 신호 탐색용). */
+    private fun watchAllProps(cpm: CarPropertyManager) {
+        val list = runCatching { cpm.propertyList }.getOrElse { ProbeLog.i("ALL", "propertyList failed: $it"); return }
+        ProbeLog.i("ALL", "accessible properties: ${list.size}")
+        val last = HashMap<String, String>()
+        for (cfg in list) {
+            val id = cfg.propertyId
+            val name = runCatching { VehiclePropertyIds.toString(id) }.getOrDefault("0x" + Integer.toHexString(id))
+            if (cfg.changeMode == android.car.hardware.CarPropertyConfig.VEHICLE_PROPERTY_CHANGE_MODE_CONTINUOUS) continue
+            runCatching {
+                cpm.registerCallback(object : CarPropertyManager.CarPropertyEventCallback {
+                    override fun onChangeEvent(v: CarPropertyValue<*>) {
+                        val key = "$name@${v.areaId}"
+                        val value = (v.value as? Array<*>)?.contentToString() ?: (v.value as? IntArray)?.contentToString() ?: v.value.toString()
+                        if (last[key] != value) { if (last.containsKey(key)) ProbeLog.i("ALL", "$key: ${last[key]} -> $value"); last[key] = value }
+                    }
+                    override fun onErrorEvent(propId: Int, zone: Int) = Unit
+                }, id, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+            }
         }
     }
 

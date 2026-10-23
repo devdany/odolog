@@ -183,11 +183,11 @@ private fun RecordingCard() {
     Card {
         Column {
             SectionTitle("기록")
-            Text("P단으로 바꾼 뒤 이 시간이 지나면 운행이 끝납니다. 그 전에 다시 출발하면 같은 운행으로 이어집니다.",
+            Text("시동을 끄면 운행이 끝납니다. 시동을 켠 채 P단에 서 있으면 아래 시간이 지난 뒤 끝나고, 그 전에 다시 출발하면 같은 운행으로 이어집니다.",
                 style = MaterialTheme.typography.bodyMedium, color = C.sub)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf(300 to "5분 (기본)", 120 to "2분", 15 to "15초 (시연)").forEach { (sec, label) ->
+                listOf(1800 to "30분 (기본)", 600 to "10분", 15 to "15초 (시연)").forEach { (sec, label) ->
                     if (grace == sec) Button(onClick = {}, modifier = Modifier.height(60.dp)) { Text(label) }
                     else OutlinedButton(onClick = { Graph.prefs.stopGraceSec = sec }, modifier = Modifier.height(60.dp)) { Text(label) }
                 }
