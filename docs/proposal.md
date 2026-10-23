@@ -141,8 +141,9 @@ https://github.com/devdany/odolog — 차량 앱(android/), 관리자 웹(web/),
 https://odolog-woad.vercel.app — 심사용 데모 계정: {{DEMO_ACCOUNT}}
 데모 운전자 PIN(차량 앱 본인 확인용): {{DEMO_PINS}}
 데모 회사에는 차량 2대의 10월 운행 기록(계기판 체인 연속, 미확정·미확인 구간 포함)이 들어 있으며, 차량별 운행일지와 국세청 서식 엑셀을 내려받을 수 있습니다.
-■ 시연 영상
-(작성 예정)
+■ 시연 영상 (2분 40초, 무음·자막)
+https://github.com/devdany/odolog/releases/download/v1.0.0/odolog-demo-video.mp4
+릴리스 페이지(영상·APK): https://github.com/devdany/odolog/releases/tag/v1.0.0
 
 ## 8.
 (선택) 숏폼 링크:

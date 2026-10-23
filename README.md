@@ -10,6 +10,7 @@
 | 관리자 웹 | `web/` — Next.js + Supabase, Vercel 배포 |
 | DB | `supabase/migrations/` — 스키마, RLS, 차량 페어링·동기화 RPC |
 | APK | `apk/` (release) |
+| 시연 영상 | [v1.0.0 릴리스](https://github.com/devdany/odolog/releases/tag/v1.0.0) — `odolog-demo-video.mp4` (2분 40초, 무음·자막) |
 
 ## 핵심 기능
 
