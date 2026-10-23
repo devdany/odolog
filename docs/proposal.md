@@ -130,9 +130,13 @@ Pleos Connect 차량 앱(Kotlin, Android Automotive, minSdk 28 / targetSdk 34)�
 - 지역: Pleos Connect의 유럽 출시에 맞춰 독일 Fahrtenbuch 등 각국의 업무용 차량 운행기록 제도로 확장. 국가별 서식만 바꾸면 되는 구조로 설계합니다.
 
 ## 7.
-[제출 시 기재] 시연 영상 링크: (작성 예정)
-[제출 시 기재] GitHub 저장소: (작성 예정) — 소스 코드 및 apk/ 폴더의 release APK 포함
-앱 화면 시안: (작성 예정)
+■ GitHub 저장소 (소스 코드 · release APK)
+https://github.com/devdany/odolog — 차량 앱(android/), 관리자 웹(web/), DB 스키마(supabase/), 기술 검토 문서(docs/). APK는 apk/ 폴더
+■ 관리자 웹 (실서비스 배포)
+https://odolog-woad.vercel.app — 심사용 데모 계정: {{DEMO_ACCOUNT}}
+데모 회사에는 차량 2대의 10월 운행 기록(계기판 체인 연속, 미확정·미확인 구간 포함)이 들어 있으며, 차량별 운행일지와 국세청 서식 엑셀을 내려받을 수 있습니다.
+■ 시연 영상
+(작성 예정)
 
 ## 8.
 (선택) 숏폼 링크:
