@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 오도로그 아이콘: 계기판 바늘 + 기록 줄 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FF14B8A6" android:pathData="M54,8a46,46 0,1 1,0 92a46,46 0,1 1,0 -92z"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="7" android:strokeLineCap="round"
+        android:pathData="M28,66 A28,28 0 0,1 80,66"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="6" android:strokeLineCap="round"
+        android:pathData="M54,66 L68,44"/>
+    <path android:strokeColor="#CCFFFFFF" android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M36,80 L72,80"/>
+</vector>

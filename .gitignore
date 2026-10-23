@@ -1,0 +1,28 @@
+# 개인정보·제출 서류·내부 메모 — 공개 저장소에 올리지 않음
+submission/
+docs/research.md
+CLAUDE.md
+
+# Android
+**/build/
+**/.gradle/
+**/local.properties
+*.iml
+.idea/
+.kotlin/
+*.keystore
+*.jks
+android/keystore.properties
+
+# Web
+node_modules/
+.next/
+.vercel/
+.env*
+!.env.example
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+.DS_Store
