@@ -128,4 +128,16 @@ for chunk in (t1, t2):
 now = datetime.now(timezone.utc).isoformat()
 req("PATCH", f"/rest/v1/vehicles?id=eq.{vehicles[0]['id']}", {"last_odo_km": round(o1, 1), "last_seen_at": now, "paired_at": now})
 req("PATCH", f"/rest/v1/vehicles?id=eq.{vehicles[1]['id']}", {"last_odo_km": round(o2, 1)})
+# 운전자 PIN (데모 계정으로 로그인해 관리자 함수 호출 — PIN 해시는 API로 직접 쓸 수 없음)
+anon = env.get("SUPABASE_ANON_KEY")
+if anon:
+    def as_user(method, path, body, token=None):
+        r = urllib.request.Request(URL + path, method=method, data=json.dumps(body).encode())
+        r.add_header("apikey", anon); r.add_header("Authorization", f"Bearer {token or anon}"); r.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(r) as res:
+            t = res.read().decode(); return json.loads(t) if t else None
+    tok = as_user("POST", "/auth/v1/token?grant_type=password", {"email": EMAIL, "password": PASSWORD})["access_token"]
+    for name, pin in (("김대리", "1234"), ("이과장", "2345"), ("박팀장", "3456")):
+        as_user("POST", "/rest/v1/rpc/set_driver_pin", {"p_driver": D[name]["id"], "p_pin": pin}, tok)
+    print("demo PINs: 김대리 1234, 이과장 2345, 박팀장 3456")
 print(f"demo user {EMAIL}, org {org}, trips {len(t1)}+{len(t2)}")
