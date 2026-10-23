@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -69,6 +73,8 @@ private fun PairingCard() {
     var code by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
 
     Card {
         Column {
@@ -90,7 +96,8 @@ private fun PairingCard() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(value = code, onValueChange = { code = it.filter(Char::isDigit).take(6) },
                         label = { Text("페어링 코드") }, singleLine = true, textStyle = MaterialTheme.typography.titleLarge,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(260.dp))
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focus.clearFocus(); keyboard?.hide() }), modifier = Modifier.width(260.dp))
                     Spacer(Modifier.width(16.dp))
                     Button(enabled = code.length == 6 && !busy, modifier = Modifier.height(64.dp), onClick = {
                         busy = true
@@ -113,6 +120,9 @@ private fun DriversCard() {
     val paired = Graph.prefs.orgNameFlow.collectAsStateWithLifecycle().value != null
     var name by remember { mutableStateOf("") }
     var dept by remember { mutableStateOf("") }
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val add = { if (name.isNotBlank()) { Graph.actions.addLocalDriver(name, dept); name = ""; dept = "" }; focus.clearFocus(); keyboard?.hide() }
     Card {
         Column {
             SectionTitle("운전자")
@@ -127,13 +137,13 @@ private fun DriversCard() {
             if (!paired) {
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(name, { name = it }, label = { Text("이름") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(name, { name = it }, label = { Text("이름") }, singleLine = true, modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next))
                     Spacer(Modifier.width(12.dp))
-                    OutlinedTextField(dept, { dept = it }, label = { Text("부서") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(dept, { dept = it }, label = { Text("부서") }, singleLine = true, modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { add() }))
                     Spacer(Modifier.width(12.dp))
-                    Button(enabled = name.isNotBlank(), modifier = Modifier.height(64.dp), onClick = {
-                        Graph.actions.addLocalDriver(name, dept); name = ""; dept = ""
-                    }) { Text("추가") }
+                    Button(enabled = name.isNotBlank(), modifier = Modifier.height(64.dp), onClick = { add() }) { Text("추가") }
                 }
             }
         }

@@ -28,6 +28,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,7 +87,9 @@ private fun AppRoot(openTrip: String?, setOpenTrip: (String?) -> Unit) {
                 )
             }
         }
-        Box(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp)) {
+        val focus = LocalFocusManager.current
+        Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { focus.clearFocus() } }
+            .padding(horizontal = 32.dp, vertical = 24.dp)) {
             if (openTrip != null) TripDetail(openTrip) { setOpenTrip(null) }
             else when (tab) {
                 Tab.HOME -> HomeScreen(onOpenTrip = setOpenTrip)

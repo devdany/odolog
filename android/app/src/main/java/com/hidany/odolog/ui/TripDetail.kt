@@ -23,7 +23,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,12 +104,20 @@ fun TripDetail(tripId: String, onClose: () -> Unit) {
             Column {
                 SectionTitle("비고 (방문처·목적)")
                 var note by remember(t.id) { mutableStateOf(t.note ?: "") }
-                OutlinedTextField(value = note, onValueChange = { note = it }, modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyLarge, placeholder = { Text("예: ○○상사 납품 미팅") })
-                Row {
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { Graph.actions.updateNote(t.id, note) }) { Text("저장", style = MaterialTheme.typography.labelLarge) }
+                val focus = LocalFocusManager.current
+                val keyboard = LocalSoftwareKeyboardController.current
+                val save = { Graph.actions.updateNote(t.id, note); focus.clearFocus(); keyboard?.hide() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(value = note, onValueChange = { note = it }, modifier = Modifier.weight(1f),
+                        singleLine = true, textStyle = MaterialTheme.typography.bodyLarge, placeholder = { Text("예: ○○상사 납품 미팅") },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { save() }))
+                    Spacer(Modifier.width(12.dp))
+                    Button(onClick = { save() }, enabled = note != (t.note ?: ""), modifier = Modifier.height(60.dp)) {
+                        Text("저장", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
+                if (t.note != null && note == t.note) Text("저장됨", color = C.sub, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
             }
         }
         Spacer(Modifier.height(32.dp))
