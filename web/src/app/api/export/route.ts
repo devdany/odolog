@@ -93,11 +93,13 @@ export async function GET(req: NextRequest) {
     ["업무사용비율(%)", total > 0 ? Math.round((work / total) * 1000) / 10 : 0],
   ] as const;
   for (const [label, value] of sumRows) {
-    const r = ws.addRow(["", "", "", "", "", label, value]);
-    ws.mergeCells(`F${r.number}:G${r.number}`);
-    r.getCell(6).font = { bold: true }; r.getCell(6).border = border; r.getCell(7).border = border;
-    r.getCell(8).value = value; r.getCell(8).numFmt = "#,##0.0"; r.getCell(8).border = border; r.getCell(8).font = { bold: true };
-    r.getCell(7).value = null;
+    const r = ws.addRow(["", "", "", "", "", label, "", Math.round(value * 10) / 10]);
+    ws.mergeCells(`F${r.number}:G${r.number}`); // 병합 후에는 G(=F 프록시)를 건드리지 않는다
+    r.getCell(6).font = { bold: true };
+    r.getCell(6).border = border;
+    r.getCell(8).numFmt = "#,##0.0";
+    r.getCell(8).border = border;
+    r.getCell(8).font = { bold: true };
   }
   const foot = ws.addRow(["※ 주행 전·후 거리는 차량 계기판(Pleos Vehicle SDK Odometer) 실측값으로 자동 기록되었습니다. — 오도로그"]);
   foot.getCell(1).font = { size: 9, color: { argb: "FF6B7280" } };

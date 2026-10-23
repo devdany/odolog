@@ -26,3 +26,6 @@ supabase/.temp/
 supabase/.branches/
 
 .DS_Store
+
+# 로컬 비밀값
+.secrets/
